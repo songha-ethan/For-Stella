@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stella's Game Night</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #1a0033, #3a0ca3 50%, #f72585);
+  }
+  header { text-align: center; padding: 28px 16px 8px; }
+  h1 { margin: 0; font-size: 2.6rem; text-shadow: 0 0 14px #ff6ec7; }
+  h1 span { color: #ffd60a; }
+  .sub { opacity: .85; margin-top: 6px; }
+  nav { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 18px 0; }
+  button {
+    font: inherit; font-weight: 700; cursor: pointer; border: none;
+    border-radius: 999px; padding: 12px 22px; color: #1a0033; background: #ffd60a;
+    transition: transform .1s, background .2s;
+  }
+  button:hover { transform: translateY(-2px); background: #ffe85c; }
+  button:active { transform: scale(.97); }
+  button.alt { background: #fff; }
+  button.danger { background: #ff4d6d; color: #fff; }
+  .panel { display: none; max-width: 720px; margin: 0 auto; padding: 0 16px 40px; }
+  .panel.active { display: block; }
+  .card {
+    background: rgba(0,0,0,.35); border-radius: 18px; padding: 22px;
+    margin-bottom: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.3);
+  }
+  .center { text-align: center; }
+  .big { font-size: 2.2rem; font-weight: 800; margin: 10px 0; }
+  .question { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 18px; }
+  .answers { display: grid; gap: 10px; }
+  .answer {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #3a0ca3; border-radius: 12px; padding: 14px 18px; font-size: 1.1rem; font-weight: 600;
+  }
+  .answer.hidden { background: #2b2b48; color: transparent; text-shadow: 0 0 10px #fff; user-select: none; }
+  .answer.hidden::after { content: "?"; color: #fff; text-shadow: none; }
+  .answer .pts { background: #ffd60a; color: #1a0033; border-radius: 8px; padding: 2px 10px; }
+  .strikes { font-size: 2rem; color: #ff4d6d; letter-spacing: 6px; min-height: 2.4rem; text-align: center; }
+  input[type=text] {
+    font: inherit; padding: 12px 16px; border-radius: 12px; border: none;
+    width: 100%; margin: 12px 0; outline: none;
+  }
+  .vault { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-top: 16px; }
+  .box {
+    background: #ffd60a; color: #1a0033; border-radius: 14px; height: 110px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 800;
+    cursor: pointer; transition: transform .15s;
+  }
+  .box:hover { transform: rotate(-2deg) scale(1.04); }
+  .box.opened { background: #2b2b48; color: #fff; cursor: default; transform: none; }
+  .box.winner { background: #2ec4b6; color: #1a0033; }
+  .timer { font-size: 3.5rem; font-weight: 800; text-align: center; }
+  .tapbtn {
+    width: 100%; padding: 40px 0; font-size: 1.6rem; border-radius: 20px;
+    background: #2ec4b6; color: #1a0033;
+  }
+  .tapbtn:disabled { background: #555; color: #aaa; cursor: not-allowed; transform: none; }
+  .hidden-el { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Stella's <span>Game Night</span></h1>
+  <div class="sub">Survey says... you're the best! 🎉</div>
+</header>
+
+<nav>
+  <button data-tab="feud">Survey Says</button>
+  <button data-tab="race">Physical Race</button>
+  <button data-tab="vault">Secret Vault</button>
+</nav>
+
+<!-- SURVEY SAYS -->
+<section class="panel" id="feud">
+  <div class="card">
+    <div class="center" id="feudRound" style="opacity:.8"></div>
+    <div class="question" id="feudQ"></div>
+    <div class="answers" id="feudAnswers"></div>
+    <div class="strikes" id="feudStrikes"></div>
+    <div class="center" style="font-size:1.2rem">Score: <b id="feudScore">0</b></div>
+    <input type="text" id="feudInput" placeholder="Type your answer and press Enter">
+    <div class="center"><button id="feudNext" class="alt hidden-el">Next Question</button></div>
+  </div>
+</section>
+
+<!-- PHYSICAL RACE -->
+<section class="panel" id="race">
+  <div class="card center">
+    <div class="big">Tap Challenge</div>
+    <p>You have 10 seconds. Tap as fast as you can. Beat 60 taps to win!</p>
+    <div class="timer" id="raceTimer">10.0</div>
+    <div id="raceCount" style="font-size:1.4rem;margin-bottom:12px">Taps: 0</div>
+    <button class="tapbtn" id="tapBtn">TAP!</button>
+    <div style="margin-top:16px"><button id="raceStart">Start</button></div>
+    <div class="big" id="raceResult" style="margin-top:16px"></div>
+    <div id="raceBest" style="opacity:.85"></div>
+  </div>
+</section>
+
+<!-- SECRET VAULT -->
+<section class="panel" id="vault">
+  <div class="card center">
+    <div class="big">Pick a Box</div>
+    <p>One box holds the Million Dollar Secret. Choose wisely!</p>
+    <div class="vault" id="vaultBoxes"></div>
+    <div class="big" id="vaultResult" style="margin-top:20px"></div>
+    <div style="margin-top:16px"><button id="vaultReset" class="hidden-el">Play Again</button></div>
+  </div>
+</section>
+
+<script>
+  // ---------- Tabs ----------
+  const panels = document.querySelectorAll('.panel');
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panels.forEach(p => p.classList.remove('active'));
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+  document.getElementById('feud').classList.add('active');
+
+  // ---------- SURVEY SAYS ----------
+  const questions = [
+  { q: "Name a snack you'd bring to movie night", answers: [["Popcorn", 50], ["Candy", 25], ["Nachos", 15], ["Pizza", 10]] },
+  { q: "Name a fun thing to do on a first date", answers: [["Go for a walk", 35], ["Aquarium", 25], ["Karaoke", 20], ["Bowling", 16], ["Arcade", 14], ["Movies", 2], ["Coffee", 1.2]] },
+  { q: "Name something you pack for a beach day", answers: [["Sunscreen", 40], ["Towel", 25], ["Snacks", 15], ["Umbrella", 10], ["Book", 10]] },
+  { q: "Name a reason someone is late to a party", answers: [["Traffic", 35], ["Getting ready", 30], ["Forgot the time", 20], ["Wrong address", 15]] },
+  { q: "Name something people do before a big exam", answers: [["Study", 40], ["Pull an all nighter", 25], ["Pray", 15], ["Eat breakfast", 12], ["Cram", 8]] },
+  { q: "Name a sport you can play with a ball", answers: [["Basketball", 40], ["Soccer", 30], ["Football", 15], ["Tennis", 10], ["Volleyball", 5]] },
+  { q: "Name a thing you'd bring on a road trip", answers: [["Snacks", 35], ["Music playlist", 25], ["Phone charger", 20], ["Water bottle", 12], ["Pillow", 8]] },
+  { q: "Name something that makes you smile", answers: [["Ethan", 100], ["Dogs", 40], ["Friends", 25], ["Food", 18], ["Music", 10], ["Cats", 7]] },
+  { q: "Name a dessert you'd order at a restaurant", answers: [["Cake", 35], ["Ice cream", 30], ["Cheesecake", 20], ["Brownie", 10], ["Pie", 5]] },
+  { q: "Name something you'd bounce on", answers: [["Pogo stick", 35], ["Bed", 25], ["Trampoline", 20], ["Bouncy House", 12], ["Sofa", 8]] },
+];
+  let qIndex = 0, feudScore = 0, feudStrikes = 0, revealed = [];
+
+  function loadQuestion() {
+    const data = questions[qIndex];
+    feudStrikes = 0;
+    revealed = data.answers.map(() => false);
+    document.getElementById('feudRound').textContent = `Round ${qIndex + 1} of ${questions.length}`;
+    document.getElementById('feudQ').textContent = data.q;
+    document.getElementById('feudStrikes').textContent = '';
+    document.getElementById('feudNext').classList.add('hidden-el');
+    document.getElementById('feudInput').disabled = false;
+    document.getElementById('feudInput').focus();
+    renderAnswers();
+  }
+
+  function renderAnswers() {
+    const data = questions[qIndex];
+    document.getElementById('feudAnswers').innerHTML = data.answers.map(([text, pts], i) =>
+      `<div class="answer ${revealed[i] ? '' : 'hidden'}">
+         <span>${revealed[i] ? text : ''}</span>
+         ${revealed[i] ? `<span class="pts">${pts}</span>` : ''}
+       </div>`).join('');
+  }
+
+  function endRound() {
+    const data = questions[qIndex];
+    data.answers.forEach((_, i) => revealed[i] = true);
+    renderAnswers();
+    document.getElementById('feudInput').disabled = true;
+    document.getElementById('feudStrikes').textContent = '';
+    const nextBtn = document.getElementById('feudNext');
+    nextBtn.classList.remove('hidden-el');
+    nextBtn.textContent = qIndex < questions.length - 1 ? 'Next Question' : 'Play Again';
+  }
+
+  document.getElementById('feudInput').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const input = e.target;
+    const guess = input.value.trim().toLowerCase();
+    input.value = '';
+    if (!guess) return;
+    const answers = questions[qIndex].answers;
+    const idx = answers.findIndex(([text], i) => !revealed[i] && text.toLowerCase() === guess);
+    if (idx >= 0) {
+      revealed[idx] = true;
+      feudScore += answers[idx][1];
+      document.getElementById('feudScore').textContent = feudScore;
+      renderAnswers();
+      if (revealed.every(Boolean)) endRound();
+    } else {
+      feudStrikes++;
+      document.getElementById('feudStrikes').textContent = 'X'.repeat(feudStrikes);
+      if (feudStrikes >= 3) {
+        document.getElementById('feudStrikes').textContent = 'SURVEY SAYS... 🔔 X X X';
+        endRound();
+      }
+    }
+  });
+
+  document.getElementById('feudNext').addEventListener('click', () => {
+    if (qIndex < questions.length - 1) qIndex++;
+    else { qIndex = 0; feudScore = 0; document.getElementById('feudScore').textContent = 0; }
+    loadQuestion();
+  });
+
+  loadQuestion();
+
+  // ---------- PHYSICAL RACE ----------
+  const tapBtn = document.getElementById('tapBtn');
+  const raceStart = document.getElementById('raceStart');
+  let taps = 0, timeLeft = 10, raceTimer = null, best = 0;
+
+  raceStart.addEventListener('click', () => {
+    clearInterval(raceTimer);
+    taps = 0; timeLeft = 10;
+    document.getElementById('raceCount').textContent = 'Taps: 0';
+    document.getElementById('raceTimer').textContent = '10.0';
+    document.getElementById('raceResult').textContent = '';
+    tapBtn.disabled = false;
+    raceStart.textContent = 'Restart';
+    raceTimer = setInterval(() => {
+      timeLeft -= 0.1;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        clearInterval(raceTimer);
+        tapBtn.disabled = true;
+        finishRace();
+      }
+      document.getElementById('raceTimer').textContent = timeLeft.toFixed(1);
+    }, 100);
+  });
+
+  tapBtn.addEventListener('click', () => {
+    if (timeLeft > 0) {
+      taps++;
+      document.getElementById('raceCount').textContent = `Taps: ${taps}`;
+    }
+  });
+
+  function finishRace() {
+    best = Math.max(best, taps);
+    const won = taps >= 60;
+    document.getElementById('raceResult').textContent = won ? `🏆 ${taps} taps! You made it!` : `${taps} taps. Almost! Try again.`;
+    document.getElementById('raceBest').textContent = `Best: ${best} taps`;
+    raceStart.textContent = 'Play Again';
+  }
+
+  // ---------- SECRET VAULT ----------
+  const amounts = ["$1,000", "$5,000", "$10,000", "$50,000", "$1,000,000"];
+  let vaultOrder = [];
+  const vaultBoxes = document.getElementById('vaultBoxes');
+  const vaultResult = document.getElementById('vaultResult');
+  const vaultReset = document.getElementById('vaultReset');
+
+  function shuffle(arr) {
+    return arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(p => p[1]);
+  }
+
+  function resetVault() {
+    vaultOrder = shuffle(amounts);
+    vaultResult.textContent = '';
+    vaultReset.classList.add('hidden-el');
+    vaultBoxes.innerHTML = vaultOrder.map((_, i) =>
+      `<div class="box" data-i="${i}">Box ${i + 1}</div>`).join('');
+  }
+
+  vaultBoxes.addEventListener('click', e => {
+    const box = e.target.closest('.box');
+    if (!box || box.classList.contains('opened')) return;
+    const i = Number(box.dataset.i);
+    const amount = vaultOrder[i];
+    const boxes = vaultBoxes.querySelectorAll('.box');
+    boxes.forEach(b => {
+      if (vaultOrder[b.dataset.i] === "$1,000,000") b.classList.add('winner');
+      b.classList.add('opened');
+    });
+    boxes[i].textContent = amount;
+    vaultResult.textContent = amount === "$1,000,000"
+      ? "🎉 MILLION DOLLAR SECRET! You win!"
+      : `You found ${amount}. The secret was in another box!`;
+    vaultReset.classList.remove('hidden-el');
+  });
+
+  vaultReset.addEventListener('click', resetVault);
+  resetVault();
+</script>
+</body>
+</html>
